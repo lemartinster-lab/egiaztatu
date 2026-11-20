@@ -1,5 +1,6 @@
 import { scribeWordsToSegments, type ScribeWord } from "./parse";
 import type { Segment } from "./types";
+import { ElevenLabsError } from "./errors";
 
 const STT_URL = "https://api.elevenlabs.io/v1/speech-to-text";
 
@@ -34,7 +35,7 @@ export async function transcribeFromUrl(fileUrl: string): Promise<TranscriptionR
   });
   if (!res.ok) {
     const detail = await res.text().catch(() => "");
-    throw new Error(`ElevenLabs respondió ${res.status}: ${detail.slice(0, 300)}`);
+    throw new ElevenLabsError(res.status, detail);
   }
   const data = (await res.json()) as {
     language_code?: string;

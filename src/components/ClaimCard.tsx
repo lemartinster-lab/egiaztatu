@@ -23,11 +23,13 @@ export function ClaimCard({
   claim,
   status,
   result,
+  errorMessage,
   onRetry,
 }: {
   claim: Claim;
   status: ClaimStatus;
   result?: VerificationResult;
+  errorMessage?: string;
   onRetry?: () => void;
 }) {
   const isFact = claim.type === "hecho";
@@ -70,7 +72,7 @@ export function ClaimCard({
 
       {status === "error" && (
         <p className="error small">
-          No se pudo verificar.{" "}
+          {errorMessage || "No se pudo verificar."}{" "}
           {onRetry && (
             <button type="button" className="link" onClick={onRetry}>
               Reintentar

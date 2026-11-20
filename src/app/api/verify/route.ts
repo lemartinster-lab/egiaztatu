@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { verifyClaim } from "@/lib/claude";
+import { describeError } from "@/lib/errors";
 import { enforceLimit, jsonError } from "@/lib/http";
 import { MAX_CLAIM_CHARS } from "@/lib/parse";
 
@@ -40,6 +41,9 @@ export async function POST(request: Request) {
     return NextResponse.json(result);
   } catch (e) {
     console.error("Error verificando", e);
-    return jsonError("No se ha podido verificar esta afirmación.", 502);
+    return jsonError(
+      describeError(e, "anthropic", "No se ha podido verificar esta afirmación."),
+      502,
+    );
   }
 }

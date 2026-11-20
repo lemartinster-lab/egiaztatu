@@ -65,6 +65,7 @@ export function Egiaztatu() {
   const [claims, setClaims] = useState<Claim[]>([]);
   const [results, setResults] = useState<Record<string, VerificationResult>>({});
   const [statuses, setStatuses] = useState<Record<string, ClaimStatus>>({});
+  const [claimErrors, setClaimErrors] = useState<Record<string, string>>({});
   const [showAll, setShowAll] = useState(true);
   const [copied, setCopied] = useState(false);
   const runId = useRef(0);
@@ -88,8 +89,11 @@ export function Egiaztatu() {
         setStatuses((s) => ({ ...s, [c.id]: "hecho" }));
       } catch (e) {
         if (run !== runId.current) return;
+        const msg = e instanceof Error ? e.message : "Error desconocido";
         setStatuses((s) => ({ ...s, [c.id]: "error" }));
-        if (e instanceof Error && e.message.includes("límite diario")) setError(e.message);
+        setClaimErrors((s) => ({ ...s, [c.id]: msg }));
+        // Errores de configuración o cuota afectan a todo: se muestran arriba.
+        if (/clave|saldo|cuota|límite diario|modelo|permiso/i.test(msg)) setError(msg);
       }
     },
     [date],
@@ -189,6 +193,7 @@ export function Egiaztatu() {
     setClaims([]);
     setResults({});
     setStatuses({});
+    setClaimErrors({});
     setSegments([]);
     setNames({});
     setFile(null);
@@ -382,6 +387,7 @@ export function Egiaztatu() {
               claim={c}
               status={statuses[c.id] ?? "pendiente"}
               result={results[c.id]}
+              errorMessage={claimErrors[c.id]}
               onRetry={() => void verifyOne(c, runId.current)}
             />
           ))}

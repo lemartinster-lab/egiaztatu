@@ -12,6 +12,7 @@ import {
   segmentsToPrompt,
 } from "./parse";
 import type { Claim, Segment, Source, VerificationResult } from "./types";
+import { UserFacingError } from "./errors";
 
 /** Límite de texto de entrada (≈ 2 horas de debate). */
 export const MAX_TRANSCRIPT_CHARS = 160_000;
@@ -30,7 +31,7 @@ function model(): string {
 export async function extractClaims(segments: Segment[]): Promise<Claim[]> {
   const transcript = segmentsToPrompt(segments);
   if (transcript.length > MAX_TRANSCRIPT_CHARS) {
-    throw new Error("La transcripción es demasiado larga (máximo ≈ 2 horas)");
+    throw new UserFacingError("La transcripción es demasiado larga (máximo ≈ 2 horas).");
   }
   const res = await client().messages.create({
     model: model(),
@@ -47,7 +48,7 @@ export async function extractClaims(segments: Segment[]): Promise<Claim[]> {
   });
   const toolUse = res.content.find((b) => b.type === "tool_use");
   if (!toolUse || toolUse.type !== "tool_use") {
-    throw new Error("La IA no devolvió afirmaciones");
+    throw new UserFacingError("La IA no devolvió afirmaciones. Inténtalo de nuevo.");
   }
   return normalizeClaims(toolUse.input);
 }

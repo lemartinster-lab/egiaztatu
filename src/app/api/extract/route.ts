@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { extractClaims } from "@/lib/claude";
-import { enforceLimit, jsonError, publicMessage } from "@/lib/http";
+import { describeError } from "@/lib/errors";
+import { enforceLimit, jsonError } from "@/lib/http";
 import type { Segment } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -34,7 +35,7 @@ export async function POST(request: Request) {
   } catch (e) {
     console.error("Error extrayendo afirmaciones", e);
     return jsonError(
-      publicMessage(e, "No se han podido extraer las afirmaciones. Inténtalo de nuevo."),
+      describeError(e, "anthropic", "No se han podido extraer las afirmaciones. Inténtalo de nuevo."),
       502,
     );
   }

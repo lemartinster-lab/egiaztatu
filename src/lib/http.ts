@@ -22,10 +22,3 @@ export async function enforceLimit(req: Request, action: Action) {
     return null;
   }
 }
-
-/** Mensaje seguro para el usuario: no filtra detalles internos. */
-export function publicMessage(e: unknown, fallback: string): string {
-  const msg = e instanceof Error ? e.message : "";
-  if (msg.startsWith("La transcripción es demasiado larga")) return msg;
-  return fallback;
-}

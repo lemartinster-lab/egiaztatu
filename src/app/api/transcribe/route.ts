@@ -1,6 +1,7 @@
 import { del } from "@vercel/blob";
 import { NextResponse } from "next/server";
 import { transcribeFromUrl } from "@/lib/elevenlabs";
+import { describeError } from "@/lib/errors";
 import { enforceLimit, jsonError } from "@/lib/http";
 
 export const runtime = "nodejs";
@@ -31,7 +32,10 @@ export async function POST(request: Request) {
     return NextResponse.json(result);
   } catch (e) {
     console.error("Error transcribiendo", e);
-    return jsonError("No se ha podido transcribir el audio. Inténtalo de nuevo.", 502);
+    return jsonError(
+      describeError(e, "elevenlabs", "No se ha podido transcribir el audio. Inténtalo de nuevo."),
+      502,
+    );
   } finally {
     // Privacidad: el audio se borra en cuanto se ha transcrito.
     await del(url).catch((e) => console.error("No se pudo borrar el blob", e));
