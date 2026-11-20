@@ -1,5 +1,7 @@
 import type {
   Claim,
+  ClaimOrigin,
+  NewsMeta,
   ClaimType,
   Confidence,
   Segment,
@@ -147,6 +149,7 @@ export function segmentsToPrompt(segments: Segment[]): string {
 /* ------------------------------------------------------------------ */
 
 const CLAIM_TYPES: ClaimType[] = ["hecho", "opinion", "promesa"];
+const ORIGINS: ClaimOrigin[] = ["titular", "autor", "cita"];
 
 export function normalizeClaims(raw: unknown, max = MAX_CLAIMS): Claim[] {
   const list =
@@ -169,6 +172,7 @@ export function normalizeClaims(raw: unknown, max = MAX_CLAIMS): Claim[] {
       type,
       checkable: str(o.checkable, MAX_CLAIM_CHARS) || quote,
       topic: str(o.topic, 60),
+      ...(ORIGINS.includes(o.origin as ClaimOrigin) ? { origin: o.origin as ClaimOrigin } : {}),
     });
     if (out.length >= max) break;
   }
@@ -336,5 +340,77 @@ export function normalizeVerification(
     context: str(o.context, 1000),
     sources,
     downgraded,
+  };
+}
+
+/* ------------------------------------------------------------------ */
+/* Noticias y publicaciones de redes                                   */
+/* ------------------------------------------------------------------ */
+
+export const MAX_NEWS_TEXT = 60_000;
+export const MAX_NEWS_IMAGES = 3;
+/** Tamaño máximo de cada captura ya codificada en base64 (≈ 3 MB). */
+export const MAX_IMAGE_B64 = 4_000_000;
+export const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"] as const;
+export type ImageType = (typeof IMAGE_TYPES)[number];
+
+export type NewsInput =
+  | { mode: "url"; url: string }
+  | { mode: "text"; text: string }
+  | { mode: "image"; images: { data: string; mediaType: ImageType }[] };
+
+/** Valida lo que llega del navegador antes de gastar una llamada a la IA. */
+export function validateNewsInput(body: unknown): { ok: true; input: NewsInput } | { ok: false; error: string } {
+  const b = (body && typeof body === "object" ? body : {}) as Record<string, unknown>;
+  if (b.mode === "url") {
+    const raw = typeof b.url === "string" ? b.url.trim() : "";
+    let url: URL;
+    try {
+      url = new URL(raw);
+    } catch {
+      return { ok: false, error: "El enlace no es válido." };
+    }
+    if (url.protocol !== "https:" && url.protocol !== "http:") {
+      return { ok: false, error: "El enlace debe empezar por https://" };
+    }
+    if (raw.length > 2000) return { ok: false, error: "El enlace es demasiado largo." };
+    return { ok: true, input: { mode: "url", url: url.toString() } };
+  }
+  if (b.mode === "text") {
+    const text = typeof b.text === "string" ? b.text.trim() : "";
+    if (text.length < 20) return { ok: false, error: "Pega el texto de la noticia o publicación." };
+    if (text.length > MAX_NEWS_TEXT) return { ok: false, error: "El texto es demasiado largo." };
+    return { ok: true, input: { mode: "text", text } };
+  }
+  if (b.mode === "image") {
+    const list = Array.isArray(b.images) ? b.images : [];
+    if (list.length === 0) return { ok: false, error: "Sube al menos una captura." };
+    if (list.length > MAX_NEWS_IMAGES) {
+      return { ok: false, error: `Como máximo ${MAX_NEWS_IMAGES} capturas a la vez.` };
+    }
+    const images: { data: string; mediaType: ImageType }[] = [];
+    for (const it of list) {
+      const o = (it && typeof it === "object" ? it : {}) as Record<string, unknown>;
+      const data = typeof o.data === "string" ? o.data.replace(/^data:[^,]*,/, "") : "";
+      const mediaType = o.mediaType as ImageType;
+      if (!IMAGE_TYPES.includes(mediaType)) return { ok: false, error: "Formato de imagen no admitido." };
+      if (!data || data.length > MAX_IMAGE_B64 || !/^[A-Za-z0-9+/=]+$/.test(data)) {
+        return { ok: false, error: "Una de las capturas es demasiado grande o no es válida." };
+      }
+      images.push({ data, mediaType });
+    }
+    return { ok: true, input: { mode: "image", images } };
+  }
+  return { ok: false, error: "Tipo de entrada no válido." };
+}
+
+export function normalizeNewsMeta(raw: unknown): NewsMeta {
+  const o = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+  const published = str(o.published, 10);
+  return {
+    title: str(o.title, 200),
+    outlet: str(o.outlet, 100),
+    author: str(o.author, 100),
+    published: /^\d{4}-\d{2}-\d{2}$/.test(published) ? published : "",
   };
 }

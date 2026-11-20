@@ -14,6 +14,8 @@ export type SavedStatus = "pendiente" | "verificando" | "hecho" | "error";
 export interface Session {
   phase: "nombres" | "resultados";
   title: string;
+  /** Medio, autor y fecha de publicación (solo en noticias). */
+  subtitle?: string;
   date: string;
   /** Solo hace falta mientras se asignan nombres a las voces. */
   segments: Segment[];
@@ -75,6 +77,7 @@ export function parseSession(raw: string | null): (Session & { savedAt: string }
   return {
     phase: data.phase,
     title: typeof data.title === "string" ? data.title : "",
+    subtitle: typeof data.subtitle === "string" ? data.subtitle : "",
     date: typeof data.date === "string" ? data.date : "",
     segments: data.segments as Segment[],
     names: data.names as Record<string, string>,

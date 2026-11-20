@@ -211,7 +211,12 @@ export function buildDocxReport(
             children: [new TextRun({ text: ctx.title?.trim() || "Verificación de debate", font: FONT })],
           }),
           para(
-            ["Egiaztatu", ctx.date ? `Fecha del debate: ${ctx.date}` : ""].filter(Boolean).join(" · "),
+            [
+              "Egiaztatu",
+              ctx.source ? `Fuente analizada: ${ctx.source}` : ctx.date ? `Fecha del debate: ${ctx.date}` : "",
+            ]
+              .filter(Boolean)
+              .join(" · "),
             { color: MUTED },
           ),
           para(

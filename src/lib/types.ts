@@ -9,6 +9,9 @@ export interface Segment {
 /** Tipo de afirmación según lo que se puede comprobar. */
 export type ClaimType = "hecho" | "opinion" | "promesa";
 
+/** De dónde sale la afirmación en una noticia o publicación. */
+export type ClaimOrigin = "titular" | "autor" | "cita";
+
 export interface Claim {
   id: string;
   speaker: string;
@@ -18,6 +21,17 @@ export interface Claim {
   /** Reformulación neutra y comprobable de la afirmación (solo para hechos). */
   checkable: string;
   topic: string;
+  /** Solo en noticias y publicaciones: titular, texto del autor o cita de un tercero. */
+  origin?: ClaimOrigin;
+}
+
+/** Datos de la noticia o publicación analizada. */
+export interface NewsMeta {
+  title: string;
+  outlet: string;
+  author: string;
+  /** Fecha de publicación AAAA-MM-DD, si se conoce. */
+  published: string;
 }
 
 export type Verdict =
@@ -52,6 +66,8 @@ export interface DebateContext {
   title?: string;
   /** Fecha del debate en formato AAAA-MM-DD. */
   date?: string;
+  /** Medio, autor y fecha de publicación (noticias). */
+  source?: string;
 }
 
 export const VERDICT_LABEL: Record<Verdict, string> = {
@@ -60,6 +76,12 @@ export const VERDICT_LABEL: Record<Verdict, string> = {
   falso: "Falso",
   impreciso: "Imprecisa",
   no_verificable: "No verificable",
+};
+
+export const ORIGIN_LABEL: Record<ClaimOrigin, string> = {
+  titular: "Titular",
+  autor: "Texto del autor o medio",
+  cita: "Cita",
 };
 
 export const CLAIM_TYPE_LABEL: Record<ClaimType, string> = {

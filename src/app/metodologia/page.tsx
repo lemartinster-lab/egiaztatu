@@ -35,6 +35,20 @@ export default function Metodologia() {
         </li>
       </ul>
 
+      <h2>Noticias y publicaciones de redes</h2>
+      <p>
+        También se puede analizar una noticia o publicación a partir de su enlace, su texto o
+        capturas de pantalla. En ese caso se distingue entre el <strong>titular</strong>, lo
+        que afirma el <strong>propio medio o autor</strong> y lo que dicen las{" "}
+        <strong>personas citadas</strong>. Si el titular dice más de lo que sostiene el cuerpo
+        de la noticia, se verifica lo que el titular da a entender. Las capturas se analizan y
+        no se guardan.
+      </p>
+      <p>
+        Egiaztatu verifica afirmaciones con datos; <strong>no</strong> detecta si una foto o
+        un vídeo están manipulados o sacados de contexto.
+      </p>
+
       <h2>3. Verificación a ciegas</h2>
       <p>
         Cada hecho se verifica por separado <strong>sin decirle a la IA quién lo dijo</strong>{" "}

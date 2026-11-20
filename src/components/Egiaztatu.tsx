@@ -19,9 +19,11 @@ import {
   reportFileName,
   saveSession,
 } from "@/lib/storage";
-import type { Claim, Segment, VerificationResult } from "@/lib/types";
+import type { Claim, NewsMeta, Segment, VerificationResult } from "@/lib/types";
 
-type Mode = "texto" | "audio";
+type Mode = "texto" | "audio" | "noticia";
+type NewsMode = "url" | "text" | "image";
+const MAX_SCREENSHOTS = 3;
 type Phase =
   | "entrada"
   | "subiendo"
@@ -62,6 +64,32 @@ function mediaDuration(file: File): Promise<number | null> {
   });
 }
 
+/**
+ * Reduce una captura a JPEG de tamaño razonable antes de enviarla: las fotos
+ * del móvil pesan mucho y la IA no necesita más de ~2000 px de lado.
+ */
+async function screenshotToBase64(file: File): Promise<{ data: string; mediaType: "image/jpeg" }> {
+  const bitmap = await createImageBitmap(file);
+  const scale = Math.min(1, 2000 / Math.max(bitmap.width, bitmap.height));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(bitmap.width * scale);
+  canvas.height = Math.round(bitmap.height * scale);
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("No se ha podido procesar la imagen.");
+  ctx.fillStyle = "#fff";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  bitmap.close();
+  const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
+  return { data: dataUrl.slice(dataUrl.indexOf(",") + 1), mediaType: "image/jpeg" };
+}
+
+function metaLine(m: NewsMeta): string {
+  return [m.outlet, m.author, m.published && `publicado el ${m.published}`]
+    .filter(Boolean)
+    .join(" · ");
+}
+
 function fmtMB(bytes: number): string {
   return `${(bytes / 1024 / 1024).toFixed(0)} MB`;
 }
@@ -80,6 +108,11 @@ export function Egiaztatu() {
   const [phase, setPhase] = useState<Phase>("entrada");
   const [text, setText] = useState("");
   const [files, setFiles] = useState<File[]>([]);
+  const [newsMode, setNewsMode] = useState<NewsMode>("url");
+  const [newsUrl, setNewsUrl] = useState("");
+  const [newsText, setNewsText] = useState("");
+  const [shots, setShots] = useState<File[]>([]);
+  const [subtitle, setSubtitle] = useState("");
   const [title, setTitle] = useState("");
   const [date, setDate] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -158,6 +191,7 @@ export function Egiaztatu() {
     setRestored(true);
     if (!saved) return;
     setTitle(saved.title);
+    setSubtitle(saved.subtitle ?? "");
     setDate(saved.date);
     dateRef.current = saved.date;
     setSegments(saved.segments);
@@ -179,8 +213,8 @@ export function Egiaztatu() {
     if (phase !== "nombres" && phase !== "resultados") return;
     const store = browserStore();
     if (!store) return;
-    saveSession(store, { phase, title, date, segments, names, claims, results, statuses });
-  }, [restored, phase, title, date, segments, names, claims, results, statuses]);
+    saveSession(store, { phase, title, subtitle, date, segments, names, claims, results, statuses });
+  }, [restored, phase, title, subtitle, date, segments, names, claims, results, statuses]);
 
   /* ---------------- flujo principal ---------------- */
 
@@ -218,6 +252,10 @@ export function Egiaztatu() {
     if (merged.length === 0) {
       throw new Error("No se han encontrado afirmaciones en el texto.");
     }
+    showClaims(merged);
+  }
+
+  function showClaims(merged: Claim[]) {
     setClaims(merged);
     setResults({});
     setClaimErrors({});
@@ -229,6 +267,38 @@ export function Egiaztatu() {
     setSegments([]);
     setPhase("resultados");
     void verifyAll(merged);
+  }
+
+  async function analyzeNews() {
+    let body: unknown;
+    if (newsMode === "url") {
+      if (!newsUrl.trim()) throw new Error("Pega primero el enlace de la noticia o publicación.");
+      body = { mode: "url", url: newsUrl.trim() };
+    } else if (newsMode === "text") {
+      body = { mode: "text", text: newsText };
+    } else {
+      if (shots.length === 0) throw new Error("Sube primero una captura de pantalla.");
+      setPhase("extrayendo");
+      setProgress("Preparando las capturas…");
+      body = { mode: "image", images: await Promise.all(shots.map(screenshotToBase64)) };
+    }
+
+    setPhase("extrayendo");
+    setProgress(
+      newsMode === "url"
+        ? "Leyendo la noticia y localizando las afirmaciones…"
+        : "Analizando el contenido y localizando las afirmaciones…",
+    );
+    const r = await postJson<{ meta: NewsMeta; claims: Claim[] }>("/api/extract-news", body);
+
+    // El titular y la fecha de publicación se rellenan solos si no los has puesto.
+    if (!title.trim() && r.meta.title) setTitle(r.meta.title);
+    if (!date && r.meta.published) {
+      setDate(r.meta.published);
+      dateRef.current = r.meta.published;
+    }
+    setSubtitle(metaLine(r.meta));
+    showClaims(r.claims);
   }
 
   async function transcribeParts(): Promise<Segment[]> {
@@ -283,7 +353,12 @@ export function Egiaztatu() {
     setError(null);
     setNotice(null);
     try {
+      if (mode === "noticia") {
+        await analyzeNews();
+        return;
+      }
       if (mode === "texto") {
+        setSubtitle("");
         const segs = parseTranscriptText(text);
         if (segs.length === 0) throw new Error("Pega primero la transcripción del debate.");
         await extract(segs);
@@ -312,7 +387,7 @@ export function Egiaztatu() {
       setPhase("nombres");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Ha ocurrido un error inesperado.");
-      setPhase((p) => (p === "nombres" ? p : "entrada"));
+      setPhase((p) => (p === "nombres" || p === "resultados" ? p : "entrada"));
     } finally {
       setProgress("");
     }
@@ -351,6 +426,8 @@ export function Egiaztatu() {
     setSegments([]);
     setNames({});
     setFiles([]);
+    setShots([]);
+    setSubtitle("");
     setError(null);
     setNotice(null);
   }
@@ -383,7 +460,7 @@ export function Egiaztatu() {
   const visible = showAll ? claims : facts;
 
   function report(): string {
-    return buildMarkdownReport({ title, date }, claims, results);
+    return buildMarkdownReport({ title, date, source: subtitle || undefined }, claims, results);
   }
 
   async function copyReport() {
@@ -418,7 +495,7 @@ export function Egiaztatu() {
         import("docx"),
         import("@/lib/reportDocx"),
       ]);
-      const blob = await Packer.toBlob(buildDocxReport({ title, date }, claims, results));
+      const blob = await Packer.toBlob(buildDocxReport({ title, date, source: subtitle || undefined }, claims, results));
       saveBlob(blob, reportFileName(title, date, "docx"));
     } catch (e) {
       console.error(e);
@@ -468,11 +545,20 @@ export function Egiaztatu() {
             >
               Subir audio o vídeo
             </button>
+            <button
+              role="tab"
+              aria-selected={mode === "noticia"}
+              className={mode === "noticia" ? "tab active" : "tab"}
+              onClick={() => setMode("noticia")}
+              disabled={busy}
+            >
+              Noticia o red social
+            </button>
           </div>
 
           <div className="row">
             <label className="field grow">
-              <span>Título del debate (opcional)</span>
+              <span>{mode === "noticia" ? "Título (opcional, se detecta solo)" : "Título del debate (opcional)"}</span>
               <input
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
@@ -482,7 +568,7 @@ export function Egiaztatu() {
               />
             </label>
             <label className="field">
-              <span>Fecha del debate</span>
+              <span>{mode === "noticia" ? "Fecha de publicación" : "Fecha del debate"}</span>
               <input type="date" value={date} onChange={(e) => setDate(e.target.value)} disabled={busy} />
             </label>
           </div>
@@ -490,7 +576,96 @@ export function Egiaztatu() {
             La fecha es importante: las cifras se comparan con los datos que existían ese día.
           </p>
 
-          {mode === "texto" ? (
+          {mode === "noticia" ? (
+            <div className="field">
+              <div className="row subtabs">
+                {(
+                  [
+                    ["url", "Enlace"],
+                    ["text", "Texto"],
+                    ["image", "Captura"],
+                  ] as const
+                ).map(([m, label]) => (
+                  <label key={m} className="check">
+                    <input
+                      type="radio"
+                      name="newsMode"
+                      checked={newsMode === m}
+                      onChange={() => setNewsMode(m)}
+                      disabled={busy}
+                    />
+                    {label}
+                  </label>
+                ))}
+              </div>
+              {newsMode === "url" && (
+                <>
+                  <input
+                    type="url"
+                    inputMode="url"
+                    value={newsUrl}
+                    onChange={(e) => setNewsUrl(e.target.value)}
+                    placeholder="https://www.periodico.es/noticia…"
+                    disabled={busy}
+                  />
+                  <span className="muted small">
+                    Funciona bien con prensa digital. Muchas redes sociales (X, Instagram,
+                    Facebook) y webs de pago bloquean la lectura: en ese caso, usa una captura.
+                  </span>
+                </>
+              )}
+              {newsMode === "text" && (
+                <textarea
+                  rows={10}
+                  value={newsText}
+                  onChange={(e) => setNewsText(e.target.value)}
+                  disabled={busy}
+                  placeholder="Pega aquí el titular y el texto de la noticia o publicación."
+                />
+              )}
+              {newsMode === "image" && (
+                <>
+                  {shots.length > 0 && (
+                    <ol className="parts">
+                      {shots.map((f, i) => (
+                        <li key={`${f.name}-${f.size}-${i}`}>
+                          <span className="part-name">{f.name}</span>
+                          <span className="part-actions">
+                            <button
+                              type="button"
+                              className="link"
+                              onClick={() => setShots((p) => p.filter((_, j) => j !== i))}
+                              disabled={busy}
+                              aria-label="Quitar"
+                            >
+                              ✕
+                            </button>
+                          </span>
+                        </li>
+                      ))}
+                    </ol>
+                  )}
+                  {shots.length < MAX_SCREENSHOTS && (
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={(e) => {
+                        const list = e.target.files;
+                        if (list) setShots((p) => [...p, ...Array.from(list)].slice(0, MAX_SCREENSHOTS));
+                        e.target.value = "";
+                      }}
+                      disabled={busy}
+                    />
+                  )}
+                  <span className="muted small">
+                    Hasta {MAX_SCREENSHOTS} capturas de la misma noticia o hilo, en orden. Se
+                    analizan y no se guardan.
+                  </span>
+                </>
+              )}
+            </div>
+          ) : mode === "texto" ? (
             <label className="field">
               <span>Transcripción</span>
               <textarea
@@ -610,6 +785,7 @@ export function Egiaztatu() {
         <>
           <section className="card">
             <h2>{title || "Resultados"}</h2>
+            {subtitle && <p className="muted small">{subtitle}</p>}
             <p>
               {claims.length} afirmaciones encontradas, {facts.length} con datos comprobables.
               {facts.length > 0 && ` Verificadas: ${doneCount} de ${facts.length}.`}

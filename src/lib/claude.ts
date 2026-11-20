@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import {
   CLAIMS_SCHEMA,
+  extractNewsSystem,
   extractSystem,
   verifySystem,
   verifyUserMessage,
@@ -9,10 +10,12 @@ import {
   extractJsonObject,
   MAX_CLAIMS,
   normalizeClaims,
+  normalizeNewsMeta,
+  type NewsInput,
   normalizeVerification,
   segmentsToPrompt,
 } from "./parse";
-import type { Claim, Segment, Source, VerificationResult } from "./types";
+import type { Claim, NewsMeta, Segment, Source, VerificationResult } from "./types";
 import { UserFacingError } from "./errors";
 
 /** Límite de texto por llamada (un trozo de ≈ 40 min; el navegador trocea los debates largos). */
@@ -126,4 +129,68 @@ export async function verifyClaim(
     parsed = {};
   }
   return normalizeVerification(parsed, claim.id, retrieved);
+}
+
+/** Afirmaciones de una noticia o publicación (enlace, texto o capturas). */
+export async function extractNewsClaims(
+  input: NewsInput,
+): Promise<{ meta: NewsMeta; claims: Claim[] }> {
+  const content: Anthropic.ContentBlockParam[] = [];
+  if (input.mode === "url") {
+    content.push({ type: "text", text: `Analiza esta noticia o publicación: ${input.url}` });
+  } else if (input.mode === "text") {
+    content.push({ type: "text", text: `Texto de la noticia o publicación:\n\n${input.text}` });
+  } else {
+    for (const img of input.images) {
+      content.push({ type: "image", source: { type: "base64", media_type: img.mediaType, data: img.data } });
+    }
+    content.push({
+      type: "text",
+      text:
+        input.images.length > 1
+          ? "Estas capturas son partes de la misma noticia o publicación, en orden."
+          : "Esta captura muestra una noticia o publicación.",
+    });
+  }
+
+  const messages: Anthropic.MessageParam[] = [{ role: "user", content }];
+  let text = "";
+  let fetchFailed = false;
+
+  for (let turn = 0; turn < 3; turn++) {
+    const res = await client().messages.create({
+      model: model(),
+      max_tokens: 12_000,
+      system: extractNewsSystem(MAX_CLAIMS),
+      ...(input.mode === "url"
+        ? { tools: [{ type: "web_fetch_20250910" as const, name: "web_fetch" as const, max_uses: 2 }] }
+        : {}),
+      messages,
+    });
+    for (const b of res.content) {
+      if (b.type === "web_fetch_tool_result" && b.content.type !== "web_fetch_result") fetchFailed = true;
+    }
+    text = res.content
+      .filter((b): b is Anthropic.TextBlock => b.type === "text")
+      .map((b) => b.text)
+      .join("");
+    if (res.stop_reason !== "pause_turn") break;
+    messages.push({ role: "assistant", content: res.content });
+  }
+
+  const blocked = new UserFacingError(
+    "No se ha podido leer el enlace (algunas webs de pago y redes sociales bloquean la lectura automática). Copia el texto o sube una captura de pantalla.",
+  );
+  let parsed: unknown;
+  try {
+    parsed = extractJsonObject(text);
+  } catch {
+    if (fetchFailed) throw blocked;
+    throw new UserFacingError("La IA no devolvió afirmaciones en un formato válido. Inténtalo de nuevo.");
+  }
+  if ((parsed as { error?: unknown })?.error === "no_access") throw blocked;
+
+  const claims = normalizeClaims(parsed, MAX_CLAIMS);
+  if (claims.length === 0 && fetchFailed) throw blocked;
+  return { meta: normalizeNewsMeta((parsed as { meta?: unknown })?.meta), claims };
 }

@@ -5,7 +5,7 @@
  * Principio de neutralidad: el verificador NUNCA recibe el nombre ni el
  * partido de quien hizo la afirmación. Juzga la frase, no a la persona.
  */
-export const PROMPT_VERSION = "2026-11-20.2";
+export const PROMPT_VERSION = "2026-11-20.3";
 
 export function extractSystem(maxClaims: number): string {
   return `Eres el módulo de extracción de un verificador de datos independiente y neutral.
@@ -56,6 +56,38 @@ export const CLAIMS_SCHEMA = {
   required: ["claims"],
   additionalProperties: false,
 };
+
+export function extractNewsSystem(maxClaims: number): string {
+  return `Eres el módulo de extracción de un verificador de datos independiente y neutral.
+
+Recibirás una noticia de prensa o una publicación de redes sociales: como enlace (léelo con la herramienta web_fetch), como texto o como capturas de pantalla.
+
+Tu tarea: localizar las afirmaciones relevantes y clasificarlas. NO verificas nada; solo extraes y clasificas.
+
+Para cada afirmación indica:
+- "origin":
+  - "titular": el titular o la frase destacada. Inclúyelo siempre si contiene un dato. Si el titular exagera o dice algo distinto de lo que sostiene el cuerpo de la noticia, inclúyelo y refleja en "checkable" exactamente lo que el titular da a entender.
+  - "autor": lo que afirma el propio medio, periodista o autor de la publicación.
+  - "cita": lo que dice una persona o institución citada ("según el consejero…", declaraciones entre comillas).
+- "speaker": quién lo afirma. Para "titular", escribe "Titular". Para "autor", el nombre del medio o de la cuenta (o "Autor" si no se sabe). Para "cita", el nombre y cargo de la persona citada.
+- "type": "hecho" (comprobable con datos públicos), "opinion" o "promesa".
+- "quote": la frase tal como aparece (puedes recortar, sin cambiar el sentido).
+- "checkable": para los hechos, reformulación neutra, autocontenida y comprobable, con ámbito y periodo. Para opiniones y promesas, repite la frase.
+- "topic": tema en una o dos palabras.
+
+Reglas:
+1. Prioriza los hechos con cifras o datos concretos. Descarta obviedades sin contenido informativo.
+2. Mismo criterio para todos, sin importar quiénes sean o su ideología.
+3. Máximo ${maxClaims} afirmaciones.
+4. No inventes afirmaciones que no estén en el contenido. Si es una captura, transcribe con cuidado cifras y nombres.
+5. Si no puedes leer el enlace (bloqueado, de pago, vacío), NO lo deduzcas por la dirección: responde {"error": "no_access"}.
+
+Responde SOLO con un objeto JSON, sin texto adicional:
+{
+  "meta": { "title": "titular o primera frase", "outlet": "medio o red social", "author": "autor o cuenta", "published": "AAAA-MM-DD o vacío" },
+  "claims": [ { "origin": "...", "speaker": "...", "type": "...", "quote": "...", "checkable": "...", "topic": "..." } ]
+}`;
+}
 
 export function verifySystem(today: string): string {
   return `Eres un verificador de datos (fact-checker) profesional, riguroso y estrictamente neutral. Hoy es ${today}.

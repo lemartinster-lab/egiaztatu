@@ -11,6 +11,19 @@ Pegas la transcripción o subes el audio/vídeo de un debate. Egiaztatu:
 4. Verifica cada hecho **a ciegas** (sin saber quién lo dijo) con búsqueda web, priorizando fuentes oficiales (Claude + web search).
 5. Muestra un semáforo por afirmación (Verdadero / Engañoso / Falso / Imprecisa / No verificable), con explicación y fuentes.
 
+### Noticias y publicaciones de redes
+
+Pestaña «Noticia o red social», con tres entradas:
+
+- **Enlace:** Claude lee la página con su herramienta `web_fetch`. Funciona con prensa
+  digital; muchas redes sociales y webs de pago bloquean la lectura (la app lo avisa).
+- **Texto** pegado.
+- **Capturas** (hasta 3): se reducen en el móvil a JPEG de ≤ 2000 px y Claude las lee.
+
+Cada afirmación se etiqueta como *titular*, *autor/medio* o *cita*. El titular y la fecha de
+publicación se rellenan solos. La verificación es la misma (a ciegas y con fuentes).
+No detecta imágenes o vídeos manipulados.
+
 ### Debates largos (por ejemplo, a cuatro y de dos horas)
 
 - **Audio por partes:** hasta 4 archivos de máx. 90 min y 300 MB cada uno. Cada parte se
@@ -81,6 +94,7 @@ que repita llamadas), en memoria; no hace falta Upstash.
 | Subir archivo | 12 | `LIMIT_UPLOAD_PER_DAY` |
 | Transcribir audio | 8 | `LIMIT_TRANSCRIBE_PER_DAY` |
 | Extraer afirmaciones (por tramo) | 30 | `LIMIT_EXTRACT_PER_DAY` |
+| Analizar noticia o publicación | 25 | `LIMIT_NEWS_PER_DAY` |
 | Verificar una afirmación | 150 | `LIMIT_VERIFY_PER_DAY` |
 
 Audio: máximo 300 MB y 90 minutos por parte, hasta 4 partes. Se borra en cuanto se transcribe (y, por seguridad, caduca a las 24 h).
@@ -105,6 +119,7 @@ src/
     api/transcribe/route.ts  ElevenLabs Scribe (diarización) + borrado del audio
     api/extract/route.ts     Extracción y clasificación de afirmaciones
     api/verify/route.ts      Verificación de una afirmación con búsqueda web
+    api/extract-news/route.ts  Noticias y redes: enlace, texto o capturas
   components/                Interfaz (flujo, tarjetas, resumen)
   lib/
     prompts.ts               Prompts versionados (PROMPT_VERSION)

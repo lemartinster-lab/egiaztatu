@@ -79,6 +79,7 @@ input, textarea {
 textarea { resize: vertical; }
 .check { display: flex; gap: 0.5rem; align-items: center; }
 .check input { width: auto; }
+.subtabs { margin: 0 0 0.4rem; gap: 1.2rem; }
 
 button { font: inherit; cursor: pointer; }
 button:disabled { opacity: 0.55; cursor: not-allowed; }

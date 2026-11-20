@@ -2,6 +2,7 @@
 
 import {
   CLAIM_TYPE_LABEL,
+  ORIGIN_LABEL,
   VERDICT_LABEL,
   type Claim,
   type VerificationResult,
@@ -49,6 +50,9 @@ export function ClaimCard({
       <header className="claim-head">
         <span className={`badge badge-${tone}`}>{badge}</span>
         <span className="speaker">{claim.speaker}</span>
+        {claim.origin && claim.origin !== "titular" && (
+          <span className="topic">{ORIGIN_LABEL[claim.origin]}</span>
+        )}
         {claim.topic && <span className="topic">{claim.topic}</span>}
       </header>
 

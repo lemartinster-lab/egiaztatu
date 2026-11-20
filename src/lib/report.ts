@@ -46,7 +46,8 @@ export function buildMarkdownReport(
 ): string {
   const lines: string[] = [];
   lines.push(`# ${ctx.title?.trim() || "Verificación de debate"} — Egiaztatu`);
-  if (ctx.date) lines.push(`Fecha del debate: ${ctx.date}`);
+  if (ctx.source) lines.push(`Fuente analizada: ${ctx.source}`);
+  else if (ctx.date) lines.push(`Fecha del debate: ${ctx.date}`);
   lines.push(
     "",
     "> Verificación generada con inteligencia artificial. Es orientativa: revisa siempre las fuentes enlazadas.",

@@ -7,7 +7,7 @@
  * - Sin ellas: contador en memoria, válido para desarrollo y como red mínima.
  */
 
-export type Action = "upload" | "transcribe" | "extract" | "verify";
+export type Action = "upload" | "transcribe" | "extract" | "news" | "verify";
 
 export interface CounterStore {
   /** Incrementa y devuelve el nuevo valor; la clave caduca a los ttlSeconds. */
@@ -55,6 +55,7 @@ const DEFAULT_LIMITS: Record<Action, number> = {
   upload: 12,
   transcribe: 8,
   extract: 30,
+  news: 25,
   verify: 150,
 };
 
@@ -62,6 +63,7 @@ const ENV_KEYS: Record<Action, string> = {
   upload: "LIMIT_UPLOAD_PER_DAY",
   transcribe: "LIMIT_TRANSCRIBE_PER_DAY",
   extract: "LIMIT_EXTRACT_PER_DAY",
+  news: "LIMIT_NEWS_PER_DAY",
   verify: "LIMIT_VERIFY_PER_DAY",
 };
 
