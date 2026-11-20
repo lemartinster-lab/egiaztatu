@@ -24,6 +24,7 @@ export type Verdict =
   | "verdadero"
   | "enganoso"
   | "falso"
+  | "impreciso"
   | "no_verificable";
 
 export type Confidence = "alta" | "media" | "baja";
@@ -57,6 +58,7 @@ export const VERDICT_LABEL: Record<Verdict, string> = {
   verdadero: "Verdadero",
   enganoso: "Engañoso",
   falso: "Falso",
+  impreciso: "Imprecisa",
   no_verificable: "No verificable",
 };
 

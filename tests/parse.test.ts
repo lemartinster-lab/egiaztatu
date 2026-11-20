@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  chunkSegments,
+  claimsPerChunk,
   extractJsonObject,
+  mergeClaimLists,
   normalizeClaims,
   normalizeUrl,
   normalizeVerification,
@@ -196,5 +199,78 @@ describe("informe", () => {
     expect(md).toContain("### Falso — Ana");
     expect(md).toContain("[INE](https://ine.es)");
     expect(md).toContain("### Opinión — Luis");
+  });
+});
+
+describe("debates largos: trocear y unir", () => {
+  const seg = (speaker: string, n: number) => ({ speaker, text: "x".repeat(n) });
+
+  it("trocea sin cortar intervenciones", () => {
+    const chunks = chunkSegments([seg("A", 50), seg("B", 50), seg("C", 50)], 120);
+    expect(chunks.map((c) => c.map((s) => s.speaker))).toEqual([["A", "B"], ["C"]]);
+  });
+
+  it("una intervención enorme va sola en su trozo", () => {
+    const chunks = chunkSegments([seg("A", 10), seg("B", 500), seg("C", 10)], 100);
+    expect(chunks.map((c) => c.map((s) => s.speaker))).toEqual([["A"], ["B"], ["C"]]);
+  });
+
+  it("reparte el cupo de afirmaciones entre trozos", () => {
+    expect(claimsPerChunk(1)).toBe(40); // tope por llamada
+    expect(claimsPerChunk(3)).toBe(24);
+    expect(claimsPerChunk(10)).toBe(10);
+    expect(claimsPerChunk(0)).toBe(0);
+  });
+
+  const claim = (speaker: string, quote: string, type: Claim["type"] = "hecho"): Claim => ({
+    id: "x",
+    speaker,
+    quote,
+    type,
+    checkable: quote,
+    topic: "",
+  });
+
+  it("quita duplicados (ignorando mayúsculas, tildes y signos) y renumera", () => {
+    const merged = mergeClaimLists([
+      [claim("Ana", "El paro bajó un 20 %."), claim("Luis", "Hay más becas")],
+      [claim("Ana", "el paro bajo un 20 %"), claim("Eva", "Subió el IVA")],
+    ]);
+    expect(merged.map((c) => c.quote)).toEqual(["El paro bajó un 20 %.", "Hay más becas", "Subió el IVA"]);
+    expect(merged.map((c) => c.id)).toEqual(["c1", "c2", "c3"]);
+  });
+
+  it("si sobran, reparte por igual entre intervinientes, hechos primero, en orden del debate", () => {
+    const list = [
+      ...Array.from({ length: 10 }, (_, i) => claim("Ana", `ana ${i}`)),
+      claim("Luis", "luis opinión", "opinion"),
+      claim("Luis", "luis 1"),
+      claim("Eva", "eva 1"),
+    ];
+    const merged = mergeClaimLists([list], 6);
+    expect(merged).toHaveLength(6);
+    const count = (s: string) => merged.filter((c) => c.speaker === s).length;
+    expect(count("Luis")).toBe(2);
+    expect(count("Eva")).toBe(1);
+    expect(count("Ana")).toBe(3);
+    // orden original conservado
+    expect(merged.map((c) => c.quote).slice(0, 3)).toEqual(["ana 0", "ana 1", "ana 2"]);
+  });
+});
+
+describe("veredicto «Imprecisa»", () => {
+  it("se acepta sin fuentes y no se rebaja", () => {
+    const r = normalizeVerification(
+      { verdict: "impreciso", confidence: "media", explanation: "Falta cifra y periodo." },
+      "c1",
+      [],
+    );
+    expect(r.verdict).toBe("impreciso");
+    expect(r.downgraded).toBe(false);
+  });
+
+  it("normalizeClaims respeta un tope personalizado", () => {
+    const many = Array.from({ length: 30 }, (_, i) => ({ quote: `dato ${i}`, type: "hecho" }));
+    expect(normalizeClaims({ claims: many }, 12)).toHaveLength(12);
   });
 });

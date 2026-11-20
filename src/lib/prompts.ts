@@ -5,9 +5,10 @@
  * Principio de neutralidad: el verificador NUNCA recibe el nombre ni el
  * partido de quien hizo la afirmación. Juzga la frase, no a la persona.
  */
-export const PROMPT_VERSION = "2026-11-20.1";
+export const PROMPT_VERSION = "2026-11-20.2";
 
-export const EXTRACT_SYSTEM = `Eres el módulo de extracción de un verificador de datos independiente y neutral.
+export function extractSystem(maxClaims: number): string {
+  return `Eres el módulo de extracción de un verificador de datos independiente y neutral.
 
 Recibirás la transcripción de un debate político en español, con cada intervención precedida del nombre del hablante entre corchetes.
 
@@ -20,15 +21,17 @@ Clasificación:
 
 Reglas:
 1. Prioriza los hechos comprobables con cifras o datos concretos. Incluye opiniones y promesas solo si son centrales en el debate.
-2. Aplica exactamente el mismo criterio a TODOS los intervinientes, sin importar quiénes sean. Intenta que cada interviniente tenga una representación proporcional a lo que habla.
+2. Aplica exactamente el mismo criterio a TODOS los intervinientes, sin importar quiénes sean. Reparte la selección de forma equilibrada: en un debate a varios, cada candidato debe tener un número parecido de afirmaciones (salvo que alguno apenas dé datos).
+2b. Descarta las obviedades sin contenido informativo (por ejemplo, "no se ha ejecutado parte del presupuesto", "hay gente que lo pasa mal"). Si una frase vaga es central en el debate, inclúyela igualmente como "hecho"; el verificador la marcará como imprecisa.
 3. Ignora al moderador o moderadora salvo que afirme un dato.
 4. "quote": la frase tal como se dijo (puedes recortar muletillas, no cambies el sentido).
 5. "checkable": para los hechos, reformula la afirmación de forma neutra, autocontenida y comprobable, sin nombres de partidos ni adjetivos, añadiendo el ámbito (España, Canarias, UE...) y el periodo si se deduce del contexto. Para opiniones y promesas, repite la frase.
 6. "topic": tema en una o dos palabras (empleo, vivienda, sanidad, impuestos, inmigración, educación, economía...).
-7. Máximo 40 afirmaciones. Si hay más, quédate con las más relevantes y con más datos.
+7. Máximo ${maxClaims} afirmaciones. Si hay más, quédate con las más relevantes y con más datos, manteniendo el equilibrio entre intervinientes.
 8. No inventes afirmaciones que no estén en el texto.
 
 Responde únicamente con el objeto JSON {"claims": [...]} según el esquema indicado.`;
+}
 
 /** Esquema de salida estructurada (output_config) para la extracción. */
 export const CLAIMS_SCHEMA = {
@@ -69,11 +72,12 @@ Veredictos:
 - "verdadero": los datos confirman la afirmación (se toleran redondeos razonables).
 - "enganoso": el dato es parcialmente cierto pero omite contexto clave, exagera o compara de forma tramposa.
 - "falso": los datos la contradicen claramente.
-- "no_verificable": no hay datos públicos suficientes o la afirmación es demasiado vaga.
+- "impreciso": la afirmación es tan vaga que no se puede contrastar de forma útil o es trivialmente cierta: no concreta cifra, periodo ni comparación (por ejemplo "no se ha ejecutado parte del presupuesto", "ha subido el paro" sin decir cuándo ni cuánto). Explica qué le falta para poder verificarla y, si lo encuentras, da el dato real como contexto.
+- "no_verificable": la afirmación es concreta, pero no hay datos públicos suficientes para contrastarla.
 
 Responde SOLO con un objeto JSON, sin texto adicional, con esta forma:
 {
-  "verdict": "verdadero" | "enganoso" | "falso" | "no_verificable",
+  "verdict": "verdadero" | "enganoso" | "falso" | "impreciso" | "no_verificable",
   "confidence": "alta" | "media" | "baja",
   "explanation": "2-4 frases en español claro explicando por qué",
   "context": "el dato correcto o el contexto que falta (puede ir vacío)",

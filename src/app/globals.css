@@ -10,6 +10,7 @@
   --verdadero: #1e7a46;
   --enganoso: #b7791f;
   --falso: #b42318;
+  --impreciso: #6d5bd0;
   --no_verificable: #6b7280;
   --neutro: #4b5563;
 
@@ -52,6 +53,12 @@ a { color: var(--brand-2); }
 .card h2 { margin-top: 0; font-size: 1.2rem; }
 .card.error, .error { color: var(--falso); }
 .card.error { border-color: var(--falso); }
+.card.notice { border-color: var(--brand-2); color: var(--brand-2); }
+.parts { margin: 0.2rem 0 0.5rem; padding-left: 1.4rem; }
+.parts li { display: flex; justify-content: space-between; gap: 0.5rem; align-items: center; padding: 0.25rem 0; border-bottom: 1px dashed var(--border); }
+.part-name { overflow-wrap: anywhere; }
+.part-actions { display: flex; gap: 0.7rem; flex-shrink: 0; }
+.part-actions .link { text-decoration: none; font-size: 1.05rem; }
 
 .muted { color: var(--muted); }
 .small { font-size: 0.85rem; }
@@ -88,6 +95,7 @@ button:disabled { opacity: 0.55; cursor: not-allowed; }
 .claim.tone-verdadero { border-left-color: var(--verdadero); }
 .claim.tone-enganoso { border-left-color: var(--enganoso); }
 .claim.tone-falso { border-left-color: var(--falso); }
+.claim.tone-impreciso { border-left-color: var(--impreciso); }
 .claim.tone-no_verificable, .claim.tone-pendiente { border-left-color: var(--no_verificable); }
 .claim-head { display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; }
 .speaker { font-weight: 700; }
@@ -101,6 +109,7 @@ blockquote { margin: 0.7rem 0; padding-left: 0.8rem; border-left: 3px solid var(
 .badge-verdadero { background: var(--verdadero); color: #fff; }
 .badge-enganoso { background: var(--enganoso); color: #fff; }
 .badge-falso { background: var(--falso); color: #fff; }
+.badge-impreciso { background: var(--impreciso); color: #fff; }
 .badge-no_verificable, .badge-pendiente { background: var(--no_verificable); color: #fff; }
 .badge-neutro { background: var(--neutro); color: #fff; }
 

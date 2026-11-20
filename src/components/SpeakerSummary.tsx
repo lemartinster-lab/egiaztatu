@@ -3,7 +3,7 @@
 import type { SpeakerSummary as Summary } from "@/lib/report";
 import { VERDICT_LABEL, type Verdict } from "@/lib/types";
 
-const ORDER: Verdict[] = ["verdadero", "enganoso", "falso", "no_verificable"];
+const ORDER: Verdict[] = ["verdadero", "enganoso", "falso", "impreciso", "no_verificable"];
 
 export function SpeakerSummary({ data }: { data: Summary[] }) {
   if (data.length === 0) return null;
@@ -11,7 +11,7 @@ export function SpeakerSummary({ data }: { data: Summary[] }) {
     <section className="card">
       <h2>Resumen por interviniente</h2>
       <p className="muted small">
-        Solo cuenta los hechos comprobables ya verificados. Un número bajo de
+        Solo cuenta los hechos comprobables ya verificados; las imprecisas no cuentan como verdaderas. Un número bajo de
         afirmaciones no permite sacar conclusiones sobre nadie.
       </p>
       <div className="summary-grid">

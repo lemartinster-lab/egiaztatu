@@ -52,10 +52,10 @@ class UpstashStore implements CounterStore {
 }
 
 const DEFAULT_LIMITS: Record<Action, number> = {
-  upload: 5,
-  transcribe: 3,
-  extract: 10,
-  verify: 80,
+  upload: 12,
+  transcribe: 8,
+  extract: 30,
+  verify: 150,
 };
 
 const ENV_KEYS: Record<Action, string> = {

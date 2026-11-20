@@ -9,7 +9,20 @@ Pegas la transcripción o subes el audio/vídeo de un debate. Egiaztatu:
 2. Te deja poner nombre a cada voz.
 3. Extrae las afirmaciones y las clasifica en *hecho comprobable*, *opinión* o *promesa* (Claude).
 4. Verifica cada hecho **a ciegas** (sin saber quién lo dijo) con búsqueda web, priorizando fuentes oficiales (Claude + web search).
-5. Muestra un semáforo por afirmación (Verdadero / Engañoso / Falso / No verificable), con explicación y fuentes.
+5. Muestra un semáforo por afirmación (Verdadero / Engañoso / Falso / Imprecisa / No verificable), con explicación y fuentes.
+
+### Debates largos (por ejemplo, a cuatro y de dos horas)
+
+- **Audio por partes:** hasta 4 archivos de máx. 90 min y 300 MB cada uno. Cada parte se
+  transcribe por separado (así ninguna llamada supera el tiempo máximo de Vercel) y sus
+  voces se etiquetan «Parte N · Hablante M»; poniendo el mismo nombre se unen. Si una parte
+  falla, al reintentar no se repiten las ya transcritas.
+- **Extracción por tramos:** el navegador trocea la transcripción (≈ 40 min por tramo), la
+  analiza en paralelo y une los resultados sin duplicados, con un máximo de 60 afirmaciones
+  repartidas por igual entre intervinientes.
+- **Guardado automático** en el propio dispositivo (localStorage): una recarga no hace
+  perder el trabajo y las verificaciones pendientes se reanudan solas.
+- **Informe descargable** en Markdown.
 
 ### Regla de oro: sin fuente no hay veredicto
 
@@ -65,12 +78,12 @@ que repita llamadas), en memoria; no hace falta Upstash.
 
 | Acción | Por IP y día (por defecto) | Variable |
 |---|---|---|
-| Subir archivo | 5 | `LIMIT_UPLOAD_PER_DAY` |
-| Transcribir audio | 3 | `LIMIT_TRANSCRIBE_PER_DAY` |
-| Extraer afirmaciones | 10 | `LIMIT_EXTRACT_PER_DAY` |
-| Verificar una afirmación | 80 | `LIMIT_VERIFY_PER_DAY` |
+| Subir archivo | 12 | `LIMIT_UPLOAD_PER_DAY` |
+| Transcribir audio | 8 | `LIMIT_TRANSCRIBE_PER_DAY` |
+| Extraer afirmaciones (por tramo) | 30 | `LIMIT_EXTRACT_PER_DAY` |
+| Verificar una afirmación | 150 | `LIMIT_VERIFY_PER_DAY` |
 
-Audio: máximo 300 MB y 90 minutos. Se borra en cuanto se transcribe (y, por seguridad, caduca a las 24 h).
+Audio: máximo 300 MB y 90 minutos por parte, hasta 4 partes. Se borra en cuanto se transcribe (y, por seguridad, caduca a las 24 h).
 
 ## Scripts
 
@@ -100,12 +113,15 @@ src/
     parse.ts                 Validación de respuestas de la IA + regla de fuentes
     rateLimit.ts             Límites por IP (memoria o Upstash)
     report.ts                Resumen por interviniente e informe en Markdown
+    storage.ts               Guardado automático de la sesión en el navegador
     auth.ts                  Contraseña del modo personal
   proxy.ts                   Pide la contraseña antes de cualquier página o API
 tests/                       Tests con Vitest
 ```
 
 ## Pendiente (próximas fases)
+
+- Transcripción asíncrona (webhook) para subir un debate largo en un solo archivo.
 
 - Enlaces de YouTube (requiere una vía legal y estable para obtener el audio).
 - Modo en directo (transcripción en streaming durante la emisión).

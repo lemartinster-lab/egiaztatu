@@ -28,7 +28,7 @@ export function summarizeBySpeaker(
       s = {
         speaker: c.speaker,
         total: 0,
-        counts: { verdadero: 0, enganoso: 0, falso: 0, no_verificable: 0 },
+        counts: { verdadero: 0, enganoso: 0, falso: 0, impreciso: 0, no_verificable: 0 },
       };
       map.set(c.speaker, s);
     }

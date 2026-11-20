@@ -41,9 +41,9 @@ describe("límite de uso por IP", () => {
 
   it("lee los límites de las variables de entorno con valores por defecto", () => {
     expect(limitFor("verify", { LIMIT_VERIFY_PER_DAY: "120" })).toBe(120);
-    expect(limitFor("verify", { LIMIT_VERIFY_PER_DAY: "abc" })).toBe(80);
-    expect(limitFor("transcribe", {})).toBe(3);
-    expect(limitFor("upload", {})).toBe(5);
+    expect(limitFor("verify", { LIMIT_VERIFY_PER_DAY: "abc" })).toBe(150);
+    expect(limitFor("transcribe", {})).toBe(8);
+    expect(limitFor("upload", {})).toBe(12);
   });
 
   it("obtiene la IP del cliente detrás del proxy", () => {

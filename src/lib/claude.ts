@@ -1,12 +1,13 @@
 import Anthropic from "@anthropic-ai/sdk";
 import {
   CLAIMS_SCHEMA,
-  EXTRACT_SYSTEM,
+  extractSystem,
   verifySystem,
   verifyUserMessage,
 } from "./prompts";
 import {
   extractJsonObject,
+  MAX_CLAIMS,
   normalizeClaims,
   normalizeVerification,
   segmentsToPrompt,
@@ -14,8 +15,8 @@ import {
 import type { Claim, Segment, Source, VerificationResult } from "./types";
 import { UserFacingError } from "./errors";
 
-/** Límite de texto de entrada (≈ 2 horas de debate). */
-export const MAX_TRANSCRIPT_CHARS = 160_000;
+/** Límite de texto por llamada (un trozo de ≈ 40 min; el navegador trocea los debates largos). */
+export const MAX_TRANSCRIPT_CHARS = 60_000;
 
 function client(): Anthropic {
   const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -28,15 +29,18 @@ function model(): string {
 }
 
 /** Paso 1: extraer y clasificar afirmaciones del debate. */
-export async function extractClaims(segments: Segment[]): Promise<Claim[]> {
+export async function extractClaims(
+  segments: Segment[],
+  maxClaims: number = MAX_CLAIMS,
+): Promise<Claim[]> {
   const transcript = segmentsToPrompt(segments);
   if (transcript.length > MAX_TRANSCRIPT_CHARS) {
-    throw new UserFacingError("La transcripción es demasiado larga (máximo ≈ 2 horas).");
+    throw new UserFacingError("Este trozo de transcripción es demasiado largo. Recarga la página y vuelve a intentarlo.");
   }
   const res = await client().messages.create({
     model: model(),
     max_tokens: 16_000,
-    system: EXTRACT_SYSTEM,
+    system: extractSystem(maxClaims),
     // Salida estructurada: el modelo devuelve un JSON que cumple el esquema.
     output_config: { format: { type: "json_schema", schema: CLAIMS_SCHEMA } },
     messages: [
@@ -57,7 +61,7 @@ export async function extractClaims(segments: Segment[]): Promise<Claim[]> {
   } catch {
     throw new UserFacingError("La IA no devolvió afirmaciones en un formato válido. Inténtalo de nuevo.");
   }
-  return normalizeClaims(parsed);
+  return normalizeClaims(parsed, maxClaims);
 }
 
 /** Recoge todas las URLs que el buscador devolvió de verdad. */

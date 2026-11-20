@@ -18,7 +18,9 @@ export default function Metodologia() {
       <h2>2. Extracción de afirmaciones</h2>
       <p>
         Una inteligencia artificial lee el debate y clasifica cada afirmación relevante en
-        tres tipos:
+        tres tipos. En los debates largos el texto se analiza por tramos y después se unen
+        los resultados, quitando duplicados y repartiendo el cupo de forma equilibrada entre
+        todos los intervinientes. Las obviedades sin contenido informativo se descartan.
       </p>
       <ul>
         <li>
@@ -61,8 +63,13 @@ export default function Metodologia() {
           claramente.
         </li>
         <li>
-          <span className="badge badge-no_verificable">No verificable</span> No hay datos
-          públicos suficientes, o la afirmación es demasiado vaga.
+          <span className="badge badge-impreciso">Imprecisa</span> La frase es tan vaga
+          (sin cifra, periodo ni comparación concreta) que no se puede contrastar de forma
+          útil o es trivialmente cierta. No cuenta como verdadera en el resumen.
+        </li>
+        <li>
+          <span className="badge badge-no_verificable">No verificable</span> La afirmación
+          es concreta, pero no hay datos públicos suficientes para contrastarla.
         </li>
       </ul>
 
