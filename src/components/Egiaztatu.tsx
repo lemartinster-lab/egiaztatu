@@ -95,6 +95,7 @@ export function Egiaztatu() {
   const [claimErrors, setClaimErrors] = useState<Record<string, string>>({});
   const [showAll, setShowAll] = useState(true);
   const [copied, setCopied] = useState(false);
+  const [makingDocx, setMakingDocx] = useState(false);
   const [restored, setRestored] = useState(false);
 
   const runId = useRef(0);
@@ -391,16 +392,40 @@ export function Egiaztatu() {
     setTimeout(() => setCopied(false), 2000);
   }
 
-  function downloadReport() {
-    const blob = new Blob([report()], { type: "text/markdown;charset=utf-8" });
+  function saveBlob(blob: Blob, fileName: string) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = reportFileName(title, date);
+    a.download = fileName;
     document.body.appendChild(a);
     a.click();
     a.remove();
-    URL.revokeObjectURL(url);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  function downloadReport() {
+    saveBlob(
+      new Blob([report()], { type: "text/markdown;charset=utf-8" }),
+      reportFileName(title, date, "md"),
+    );
+  }
+
+  async function downloadDocx() {
+    setMakingDocx(true);
+    try {
+      // Se carga solo al pulsar, para no hacer más pesada la página.
+      const [{ Packer }, { buildDocxReport }] = await Promise.all([
+        import("docx"),
+        import("@/lib/reportDocx"),
+      ]);
+      const blob = await Packer.toBlob(buildDocxReport({ title, date }, claims, results));
+      saveBlob(blob, reportFileName(title, date, "docx"));
+    } catch (e) {
+      console.error(e);
+      setError("No se ha podido generar el documento Word.");
+    } finally {
+      setMakingDocx(false);
+    }
   }
 
   const speakerSamples = useMemo(() => {
@@ -600,8 +625,15 @@ export function Egiaztatu() {
               </label>
             </div>
             <div className="row">
+              <button
+                className="secondary"
+                onClick={() => void downloadDocx()}
+                disabled={doneCount < facts.length || makingDocx}
+              >
+                {makingDocx ? "Generando…" : "Descargar en Word"}
+              </button>
               <button className="secondary" onClick={downloadReport} disabled={doneCount < facts.length}>
-                Descargar informe
+                Descargar en Markdown
               </button>
               <button className="secondary" onClick={copyReport} disabled={doneCount < facts.length}>
                 {copied ? "¡Copiado!" : "Copiar informe"}

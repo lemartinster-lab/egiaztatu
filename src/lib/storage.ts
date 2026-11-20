@@ -111,7 +111,7 @@ export function clearSession(store: KeyValueStore): void {
 }
 
 /** Nombre de archivo para el informe descargado. */
-export function reportFileName(title: string, date: string): string {
+export function reportFileName(title: string, date: string, ext: "md" | "docx" = "md"): string {
   const slug = (title || "debate")
     .toLowerCase()
     .normalize("NFD")
@@ -119,5 +119,5 @@ export function reportFileName(title: string, date: string): string {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
     .slice(0, 50);
-  return `egiaztatu-${slug || "debate"}${date ? "-" + date : ""}.md`;
+  return `egiaztatu-${slug || "debate"}${date ? "-" + date : ""}.${ext}`;
 }
