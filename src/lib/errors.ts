@@ -28,6 +28,45 @@ interface ErrorLike {
   status?: unknown;
   message?: unknown;
   name?: unknown;
+  /** Cuerpo del error de la API de Anthropic (SDK): { error: { message } } */
+  error?: unknown;
+}
+
+/**
+ * Saca la frase útil de un error de API. Los errores del SDK traen el cuerpo
+ * JSON ({"type":"error","error":{"message":"…"}}) en `error` o dentro del texto.
+ */
+export function readableApiMessage(err: ErrorLike): string {
+  const fromBody = (body: unknown): string | null => {
+    if (!body || typeof body !== "object") return null;
+    const b = body as { message?: unknown; error?: unknown; detail?: unknown };
+    if (b.error && typeof b.error === "object") {
+      const inner = fromBody(b.error);
+      if (inner) return inner;
+    }
+    if (typeof b.message === "string" && b.message) return b.message;
+    if (b.detail) {
+      if (typeof b.detail === "string") return b.detail;
+      const d = fromBody(b.detail);
+      if (d) return d;
+    }
+    return null;
+  };
+
+  const direct = fromBody(err.error);
+  if (direct) return direct;
+
+  const message = typeof err.message === "string" ? err.message : "";
+  const jsonStart = message.indexOf("{");
+  if (jsonStart !== -1) {
+    try {
+      const parsed = fromBody(JSON.parse(message.slice(jsonStart)));
+      if (parsed) return parsed;
+    } catch {
+      /* no era JSON */
+    }
+  }
+  return message.replace(/^\d{3}\s+/, "");
 }
 
 const NAMES: Record<Service, string> = { anthropic: "Anthropic", elevenlabs: "ElevenLabs" };
@@ -91,7 +130,7 @@ export function describeError(e: unknown, service: Service, fallback: string): s
 
   if (status === 400 || status === 422) {
     // Detalle técnico recortado: útil en modo personal y sin datos sensibles.
-    const detail = message
+    const detail = readableApiMessage(err)
       .replace(/sk[-_][A-Za-z0-9_-]{6,}/g, "[clave oculta]")
       .replace(/\s+/g, " ")
       .slice(0, 200);

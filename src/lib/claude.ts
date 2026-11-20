@@ -1,7 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import {
+  CLAIMS_SCHEMA,
   EXTRACT_SYSTEM,
-  EXTRACT_TOOL,
   verifySystem,
   verifyUserMessage,
 } from "./prompts";
@@ -37,8 +37,8 @@ export async function extractClaims(segments: Segment[]): Promise<Claim[]> {
     model: model(),
     max_tokens: 16_000,
     system: EXTRACT_SYSTEM,
-    tools: [EXTRACT_TOOL],
-    tool_choice: { type: "tool", name: EXTRACT_TOOL.name },
+    // Salida estructurada: el modelo devuelve un JSON que cumple el esquema.
+    output_config: { format: { type: "json_schema", schema: CLAIMS_SCHEMA } },
     messages: [
       {
         role: "user",
@@ -46,11 +46,18 @@ export async function extractClaims(segments: Segment[]): Promise<Claim[]> {
       },
     ],
   });
-  const toolUse = res.content.find((b) => b.type === "tool_use");
-  if (!toolUse || toolUse.type !== "tool_use") {
-    throw new UserFacingError("La IA no devolvió afirmaciones. Inténtalo de nuevo.");
+  const text = res.content
+    .filter((b): b is Anthropic.TextBlock => b.type === "text")
+    .map((b) => b.text)
+    .join("");
+  let parsed: unknown;
+  try {
+    // Plan B incluido: extractJsonObject también lee JSON envuelto en texto.
+    parsed = extractJsonObject(text);
+  } catch {
+    throw new UserFacingError("La IA no devolvió afirmaciones en un formato válido. Inténtalo de nuevo.");
   }
-  return normalizeClaims(toolUse.input);
+  return normalizeClaims(parsed);
 }
 
 /** Recoge todas las URLs que el buscador devolvió de verdad. */

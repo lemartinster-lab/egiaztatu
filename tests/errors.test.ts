@@ -78,3 +78,32 @@ describe("describeError — seguridad", () => {
     expect(msg).toContain("[clave oculta]");
   });
 });
+
+describe("describeError — mensajes legibles", () => {
+  const body = {
+    type: "error",
+    error: {
+      type: "invalid_request_error",
+      message: 'tool_choice type "tool" and "any" are not supported for this model.',
+    },
+    request_id: "req_123",
+  };
+
+  it("usa el cuerpo del error del SDK (propiedad error)", () => {
+    const e = Object.assign(new Error("400 " + JSON.stringify(body)), { status: 400, error: body });
+    expect(describeError(e, "anthropic", FB)).toBe(
+      'Anthropic rechazó la petición: tool_choice type "tool" and "any" are not supported for this model.',
+    );
+  });
+
+  it("extrae el mensaje cuando el JSON solo viene en el texto", () => {
+    const e = apiErr(400, "400 " + JSON.stringify(body));
+    expect(describeError(e, "anthropic", FB)).not.toContain("request_id");
+    expect(describeError(e, "anthropic", FB)).toContain("not supported for this model");
+  });
+
+  it("lee el detalle de ElevenLabs", () => {
+    const e = new ElevenLabsError(422, JSON.stringify({ detail: { status: "invalid", message: "Formato no soportado" } }));
+    expect(describeError(e, "elevenlabs", FB)).toBe("ElevenLabs rechazó la petición: Formato no soportado");
+  });
+});

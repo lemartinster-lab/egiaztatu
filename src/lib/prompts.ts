@@ -28,31 +28,30 @@ Reglas:
 7. Máximo 40 afirmaciones. Si hay más, quédate con las más relevantes y con más datos.
 8. No inventes afirmaciones que no estén en el texto.
 
-Responde llamando a la herramienta "registrar_afirmaciones".`;
+Responde únicamente con el objeto JSON {"claims": [...]} según el esquema indicado.`;
 
-export const EXTRACT_TOOL = {
-  name: "registrar_afirmaciones",
-  description: "Registra las afirmaciones extraídas del debate.",
-  input_schema: {
-    type: "object" as const,
-    properties: {
-      claims: {
-        type: "array",
-        items: {
-          type: "object",
-          properties: {
-            speaker: { type: "string" },
-            quote: { type: "string" },
-            type: { type: "string", enum: ["hecho", "opinion", "promesa"] },
-            checkable: { type: "string" },
-            topic: { type: "string" },
-          },
-          required: ["speaker", "quote", "type", "checkable", "topic"],
+/** Esquema de salida estructurada (output_config) para la extracción. */
+export const CLAIMS_SCHEMA = {
+  type: "object",
+  properties: {
+    claims: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          speaker: { type: "string" },
+          quote: { type: "string" },
+          type: { type: "string", enum: ["hecho", "opinion", "promesa"] },
+          checkable: { type: "string" },
+          topic: { type: "string" },
         },
+        required: ["speaker", "quote", "type", "checkable", "topic"],
+        additionalProperties: false,
       },
     },
-    required: ["claims"],
   },
+  required: ["claims"],
+  additionalProperties: false,
 };
 
 export function verifySystem(today: string): string {
