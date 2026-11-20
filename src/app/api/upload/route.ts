@@ -46,7 +46,8 @@ export async function POST(request: Request) {
         // el archivo desaparece en 24 horas.
         ttlDays: 1,
       }),
-      onUploadCompleted: async () => {},
+      // Sin onUploadCompleted: así Vercel no llama de vuelta a esta ruta
+      // (esa llamada quedaría bloqueada por la contraseña del modo personal).
     });
     return NextResponse.json(result);
   } catch (e) {

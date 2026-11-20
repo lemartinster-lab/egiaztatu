@@ -36,18 +36,32 @@ npm run dev
 Variables: ver `.env.example`. Obligatorias: `ANTHROPIC_API_KEY`, `ELEVENLABS_API_KEY`,
 `BLOB_READ_WRITE_TOKEN`.
 
+## Modo personal (actual)
+
+De momento Egiaztatu es de uso propio. Con `APP_PASSWORD` definida, `src/proxy.ts`
+pide usuario y contraseña (autenticación básica del navegador) antes de cualquier
+página o llamada a la API, así nadie más puede gastar tus créditos de Claude o
+ElevenLabs. El navegador recuerda la contraseña.
+
+Los límites por IP se mantienen como red de seguridad (por ejemplo, ante un fallo
+que repita llamadas), en memoria; no hace falta Upstash.
+
 ## Despliegue en Vercel
 
 1. Importa el repo en Vercel.
 2. En **Storage**, crea un **Blob Store** y conéctalo al proyecto (añade `BLOB_READ_WRITE_TOKEN`).
-3. Añade `ANTHROPIC_API_KEY` y `ELEVENLABS_API_KEY` en *Environment Variables*.
-4. **Recomendado:** crea una base Upstash Redis (Marketplace de Vercel) para que los
-   límites por IP funcionen entre todas las instancias (`UPSTASH_REDIS_REST_URL` y `_TOKEN`).
-5. Rellena el titular y el correo de contacto en `src/app/aviso-legal/page.tsx`.
+3. Añade `ANTHROPIC_API_KEY`, `ELEVENLABS_API_KEY`, `APP_USER` y `APP_PASSWORD` en *Environment Variables*.
+
+### Pasar a modo público (más adelante)
+
+1. Borra `APP_PASSWORD` en Vercel: la protección se desactiva sola.
+2. Crea una base Upstash Redis (Marketplace de Vercel) para que los límites por IP
+   funcionen entre todas las instancias (`UPSTASH_REDIS_REST_URL` y `_TOKEN`).
+3. Rellena el titular y el correo de contacto en `src/app/aviso-legal/page.tsx`.
 
 > Las funciones de transcripción, extracción y verificación usan `maxDuration = 300` s.
 
-## Límites (app pública)
+## Límites por IP
 
 | Acción | Por IP y día (por defecto) | Variable |
 |---|---|---|
@@ -86,6 +100,8 @@ src/
     parse.ts                 Validación de respuestas de la IA + regla de fuentes
     rateLimit.ts             Límites por IP (memoria o Upstash)
     report.ts                Resumen por interviniente e informe en Markdown
+    auth.ts                  Contraseña del modo personal
+  proxy.ts                   Pide la contraseña antes de cualquier página o API
 tests/                       Tests con Vitest
 ```
 
